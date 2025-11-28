@@ -74,8 +74,12 @@ def svg_to_image(svg_string, color):
             count=1
         )
 
-    # Converti SVG in PNG usando cairosvg
-    png_data = cairosvg.svg2png(bytestring=svg_colored.encode('utf-8'))
+    # Converti SVG in PNG usando cairosvg con dimensioni fisse 72x72
+    png_data = cairosvg.svg2png(
+        bytestring=svg_colored.encode('utf-8'),
+        output_width=72,
+        output_height=72
+    )
 
     # Converti PNG in PIL Image
     img = Image.open(BytesIO(png_data))
