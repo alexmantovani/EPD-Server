@@ -1,0 +1,12 @@
+# Ignora cache Python
+__pycache__/
+*/__pycache__/
+*.pyc
+
+# Ignora file di test temporanei
+*.log
+*.tmp
+
+# NON ignorare lib/ e pic/
+!lib/
+!pic/

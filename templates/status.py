@@ -3,10 +3,12 @@ from config import PICDIR, FONT_BIG, FONT_SMALL
 from utils import bbox
 import os
 
-def template_status(data, WIDTH, HEIGHT, epd_colors):
-    WHITE = epd_colors["WHITE"]
-    BLACK = epd_colors["BLACK"]
-    RED   = epd_colors["RED"]
+def template_status(data, WIDTH, HEIGHT, epd_colors=None):
+    epd_colors = epd_colors or {}
+    WHITE = epd_colors.get("WHITE", (255,255,255))
+    BLACK = epd_colors.get("BLACK", (0,0,0))
+    RED = epd_colors.get("RED", (255,0,0))
+    YELLOW = epd_colors.get("YELLOW", (255,255,0))
 
     img = Image.new("RGB", (WIDTH, HEIGHT), WHITE)
     draw = ImageDraw.Draw(img)

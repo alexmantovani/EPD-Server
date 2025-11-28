@@ -1,4 +1,9 @@
 import sys, os, logging
+
+LIBDIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "lib")
+if os.path.exists(LIBDIR):
+    sys.path.append(LIBDIR)
+
 from waveshare_epd import epd3in0g
 from config import LIBDIR, PICDIR
 from utils import get_ip
