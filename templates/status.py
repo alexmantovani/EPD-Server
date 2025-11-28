@@ -1,6 +1,6 @@
 from PIL import Image, ImageDraw
 from config import PICDIR, FONT_BIG, FONT_SMALL
-from utils import bbox
+from utils import bbox, svg_to_image
 import os
 
 def template_status(data, WIDTH, HEIGHT, epd_colors=None):
@@ -37,11 +37,18 @@ def template_status(data, WIDTH, HEIGHT, epd_colors=None):
     s_w, s_h = bbox(FONT_SMALL, status)
     draw.text((WIDTH-75 - s_w//2, 4+5), status, fill=WHITE, font=FONT_SMALL)
 
-    # Icona
-    path = os.path.join(PICDIR, icon)
-    if os.path.exists(path):
-        bmp = Image.open(path)
-        img.paste(bmp, (20, header_h + 26))
+    # Icona (supporta sia BMP che SVG)
+    svg_data = data.get("svg", None)
+    if svg_data:
+        # Se c'è un SVG, usalo e coloralo dello stesso colore del testo
+        icon_img = svg_to_image(svg_data, color)
+        img.paste(icon_img, (20, header_h + 26), icon_img if icon_img.mode == 'RGBA' else None)
+    else:
+        # Altrimenti usa l'icona BMP tradizionale
+        path = os.path.join(PICDIR, icon)
+        if os.path.exists(path):
+            bmp = Image.open(path)
+            img.paste(bmp, (20, header_h + 26))
 
     # Campi dati
     x_label = 115
