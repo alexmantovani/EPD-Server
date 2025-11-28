@@ -25,11 +25,20 @@ def svg_to_image(svg_string, color):
 
     Args:
         svg_string: Stringa contenente l'SVG
-        color: Tupla RGB (r, g, b) per il colore dell'SVG
+        color: Tupla RGB (r, g, b) o intero EPD color per il colore dell'SVG
 
     Returns:
         PIL.Image: Immagine convertita dall'SVG
     """
+    # Se color è un intero (EPD color code in formato BGR), convertiamolo in RGB
+    if isinstance(color, int):
+        # L'EPD usa formato BGR (Blue-Green-Red) come intero esadecimale
+        # Estrai i componenti BGR e converti in RGB
+        b = (color >> 16) & 0xFF
+        g = (color >> 8) & 0xFF
+        r = color & 0xFF
+        color = (r, g, b)
+
     # Converti il colore RGB in formato hex
     color_hex = '#{:02x}{:02x}{:02x}'.format(color[0], color[1], color[2])
 
