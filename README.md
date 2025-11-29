@@ -439,6 +439,73 @@ eInk_Raspberry/
 └── README.md
 ```
 
+## Avvio automatico (systemd)
+
+Il modo migliore per avviare automaticamente un programma Python su
+Raspberry Pi è creare un servizio `systemd`. Questo assicura che il
+server parta al boot, venga riavviato se crasha e possa essere gestito
+come un normale servizio Linux.
+
+### Crea il file di servizio
+
+Apri il file:
+
+```bash
+sudo nano /etc/systemd/system/epdserver.service
+```
+
+Inserisci dentro:
+
+```ini
+[Unit]
+Description=EPD Display Server
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/python3 /home/pi/EPD-Server/server.py
+WorkingDirectory=/home/pi/EPD-Server
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
+```
+
+### Ricarica systemd
+
+```bash
+sudo systemctl daemon-reload
+```
+
+### Abilita l'avvio automatico
+
+```bash
+sudo systemctl enable epdserver
+```
+
+### Avvia il servizio subito
+
+```bash
+sudo systemctl start epdserver
+```
+
+### Controlla lo stato
+
+```bash
+systemctl status epdserver
+```
+
+### Controlla i log
+
+```bash
+journalctl -u epdserver -f
+```
+
+Così il server Python partirà sempre all'accensione e verrà riavviato in
+caso di errori.
+
 ## Note Tecniche
 
 - **Display**: 400x168px in modalità landscape
