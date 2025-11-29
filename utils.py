@@ -19,6 +19,39 @@ def bbox(font, text):
     b = font.getbbox(text)
     return b[2], b[3]
 
+def load_icon(icon_filename, color, svg_data=None):
+    """
+    Carica un'icona da file o da dati SVG inline, supportando BMP, PNG e SVG.
+
+    Args:
+        icon_filename: Nome del file icona (usato se svg_data è None)
+        color: Tupla RGB (r, g, b) o intero EPD color per colorare gli SVG
+        svg_data: Opzionale - dati SVG inline. Se fornito, usa questo invece del file
+
+    Returns:
+        PIL.Image: Immagine caricata, o None se il file non esiste
+    """
+    from config import PICDIR
+    import os
+
+    if svg_data:
+        # SVG inline fornito direttamente
+        return svg_to_image(svg_data, color)
+
+    # Carica da file
+    path = os.path.join(PICDIR, icon_filename)
+    if not os.path.exists(path):
+        return None
+
+    if icon_filename.lower().endswith('.svg'):
+        # File SVG - leggi e converti
+        with open(path, 'r', encoding='utf-8') as f:
+            svg_content = f.read()
+        return svg_to_image(svg_content, color)
+    else:
+        # File immagine standard (BMP, PNG, ecc.)
+        return Image.open(path)
+
 def svg_to_image(svg_string, color):
     """
     Converte una stringa SVG in un'immagine PIL, colorandola con il colore specificato.

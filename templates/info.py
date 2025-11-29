@@ -1,7 +1,6 @@
 from PIL import Image, ImageDraw
-from config import PICDIR, FONT_BIG, FONT_SMALL
-from utils import bbox, svg_to_image
-import os
+from config import FONT_BIG, FONT_SMALL
+from utils import bbox, load_icon
 
 def template_info(data, WIDTH, HEIGHT, epd_colors):
     WHITE = epd_colors["WHITE"]
@@ -21,36 +20,14 @@ def template_info(data, WIDTH, HEIGHT, epd_colors):
     t_w, t_h = bbox(FONT_BIG, title)
     draw.text(((WIDTH - t_w) // 2, (top_h - t_h) // 2), title, fill=WHITE, font=FONT_BIG)
 
-    # Icona (supporta BMP, PNG, SVG inline e file SVG)
+    # Icona
     icon_w = 0
-    svg_data = data.get("svg", None)
-    if svg_data:
-        # Se c'è un SVG inline, usalo e coloralo di nero (colore del testo)
-        icon_img = svg_to_image(svg_data, BLACK)
+    icon_img = load_icon(icon, BLACK, data.get("svg"))
+    if icon_img:
         bw, bh = icon_img.size
         icon_w = bw
         y = top_h + (HEIGHT - top_h - bh) // 2
         img.paste(icon_img, (20, y), icon_img if icon_img.mode == 'RGBA' else None)
-    else:
-        # Altrimenti usa l'icona da file
-        path = os.path.join(PICDIR, icon)
-        if os.path.exists(path):
-            # Se il file è un SVG, leggilo e convertilo
-            if icon.lower().endswith('.svg'):
-                with open(path, 'r', encoding='utf-8') as f:
-                    svg_content = f.read()
-                icon_img = svg_to_image(svg_content, BLACK)
-                bw, bh = icon_img.size
-                icon_w = bw
-                y = top_h + (HEIGHT - top_h - bh) // 2
-                img.paste(icon_img, (20, y), icon_img if icon_img.mode == 'RGBA' else None)
-            else:
-                # Per BMP, PNG, ecc. usa il metodo tradizionale
-                bmp = Image.open(path)
-                bw, bh = bmp.size
-                icon_w = bw
-                y = top_h + (HEIGHT - top_h - bh) // 2
-                img.paste(bmp, (20, y))
 
     # Testo
     if active_lines:
