@@ -8,27 +8,63 @@ Server Flask per controllare un display e-Ink Waveshare 3.0" (400x168px, 4 color
 - **Colori supportati**: Bianco, Nero, Rosso, Giallo
 - **6 template predefiniti** per diversi tipi di visualizzazione
 - **API REST** per aggiornare il display in tempo reale
+- **Aggiornamenti asincroni** tramite coda thread-safe
+- **Rate limiting** intelligente (max 1 aggiornamento ogni 10 secondi)
+- **Supporto SVG completo** (file e inline) con colorazione dinamica
+- **Upload immagini** tramite API (BMP, PNG, JPEG, GIF, SVG)
+- **Monitoraggio stato** display in tempo reale
+- **Test suite completa** con pytest
 - **Stato iniziale** mostrato all'avvio del server
 
 ## Requisiti
 
-- Python 3
+- Python 3.7+
 - Raspberry Pi con display e-Ink Waveshare 3.0" collegato
-- Librerie:
-  - Flask
-  - PIL (Pillow)
-  - waveshare_epd
+- Librerie Python:
+  - Flask - Server web REST
+  - Pillow (PIL) - Manipolazione immagini
+  - waveshare_epd - Driver display e-paper
+  - cairosvg - Supporto SVG (richiede cairo system library)
+
+### Installazione dipendenze
+
+```bash
+# Dipendenze sistema (per cairosvg)
+sudo apt-get install libcairo2-dev
+
+# Dipendenze Python
+pip install -r requirements.txt
+```
+
+## Quick Start
+
+```bash
+# 1. Installa dipendenze
+sudo apt-get install libcairo2-dev
+pip install -r requirements.txt
+
+# 2. Avvia il server
+python3 server.py
+
+# 3. Testa l'API
+curl http://localhost:5000/status
+
+# 4. Aggiorna il display
+curl -X POST http://localhost:5000/update \
+  -H "Content-Type: application/json" \
+  -d '{"template": "status", "system_name": "TEST", "status": "ONLINE"}'
+```
 
 ## Avvio del Server
 
 ```bash
-python3 server_epd.py
+python3 server.py
 ```
 
-Il server si avvia su `http://0.0.0.0:5000` e mostra immediatamente lo stato iniziale sul display con:
-- IP della macchina
-- Porta del server
-- Stato "On Line..."
+Il server si avvia su `http://0.0.0.0:5000` e:
+- Avvia un worker thread per gli aggiornamenti asincroni
+- Mostra lo stato iniziale sul display con IP, porta e status
+- Accetta richieste HTTP su tutti i 3 endpoint disponibili
 
 ## API Endpoint
 
@@ -39,6 +75,103 @@ Aggiorna il contenuto del display utilizzando uno dei template disponibili.
 **Content-Type**: `application/json`
 
 **Body**: JSON con il campo `template` e i parametri specifici del template scelto.
+
+**Risposta successo:**
+```json
+{
+  "status": "OK",
+  "template": "status",
+  "queued": true
+}
+```
+
+**Note:**
+- Le richieste vengono accodate e processate in modo asincrono
+- Il server risponde immediatamente senza attendere l'aggiornamento del display
+- Se la coda è piena, ritorna HTTP 503 (Service Unavailable)
+- Gli aggiornamenti sono limitati a 1 ogni 10 secondi (protezione hardware)
+- Se ci sono multiple richieste in coda, viene processata solo l'ultima
+
+---
+
+### GET `/status`
+
+Restituisce lo stato corrente del display.
+
+**Risposta:**
+```json
+{
+  "template": "status",
+  "data": {
+    "system_name": "EPD SERVER",
+    "status": "ONLINE",
+    ...
+  },
+  "status": "ready",
+  "queue_size": 0,
+  "last_update": "2025-11-29T12:34:56.789",
+  "seconds_since_update": 5.2
+}
+```
+
+**Campi:**
+- `template`: Nome del template correntemente visualizzato
+- `data`: Dati utilizzati per generare l'immagine corrente
+- `status`: Stato del display (`initializing`, `ready`, `error`)
+- `queue_size`: Numero di aggiornamenti in coda
+- `last_update`: Timestamp ISO dell'ultimo aggiornamento (se disponibile)
+- `seconds_since_update`: Secondi trascorsi dall'ultimo aggiornamento (se disponibile)
+
+---
+
+### POST `/upload`
+
+Carica un'immagine nella cartella `pic/` per usarla come icona nei template.
+
+**Content-Type**: `multipart/form-data`
+
+**Parametri:**
+- `file`: File immagine (obbligatorio)
+- `name`: Nome personalizzato per il file (opzionale, mantiene l'estensione originale)
+
+**Formati supportati:**
+- PNG (.png)
+- JPEG (.jpg, .jpeg)
+- BMP (.bmp)
+- GIF (.gif)
+- SVG (.svg)
+
+**Dimensione massima:** 10 MB
+
+**Esempio con curl:**
+```bash
+# Upload base
+curl -X POST -F "file=@icon.svg" http://192.168.1.100:5000/upload
+
+# Upload con nome personalizzato
+curl -X POST \
+  -F "file=@myicon.png" \
+  -F "name=CUSTOM_ICON" \
+  http://192.168.1.100:5000/upload
+```
+
+**Risposta successo:**
+```json
+{
+  "status": "OK",
+  "filename": "icon.svg",
+  "path": "pic/icon.svg",
+  "size_bytes": 2048
+}
+```
+
+**Risposta errore (estensione non valida):**
+```json
+{
+  "error": "Tipo file non consentito",
+  "allowed_extensions": ["png", "jpg", "jpeg", "bmp", "gif", "svg"]
+}
+```
 
 ## Template Disponibili
 
@@ -319,11 +452,71 @@ Il display e-Ink 3.0" supporta **4 colori**:
 
 **Nota**: Il verde NON è supportato da questo display.
 
+---
+
+## Supporto SVG
+
+Tutti i template supportano icone in formato SVG, sia come file che come dati inline. Le icone SVG vengono automaticamente:
+- Convertite in immagini 72x72px
+- Colorate dinamicamente in base al template (nero, bianco, rosso)
+- Rese con trasparenza (alpha channel)
+
+### Uso con file SVG
+
+```bash
+# 1. Carica l'icona SVG sul server
+curl -X POST -F "file=@home.svg" http://192.168.1.100:5000/upload
+
+# 2. Usala in un template
+curl -X POST http://192.168.1.100:5000/update \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template": "status",
+    "system_name": "HOME SERVER",
+    "status": "ONLINE",
+    "icon": "home.svg"
+  }'
+```
+
+### Uso con SVG inline
+
+Puoi passare l'SVG direttamente nel parametro `svg`:
+
+```bash
+curl -X POST http://192.168.1.100:5000/update \
+  -H "Content-Type: application/json" \
+  -d '{
+    "template": "status",
+    "system_name": "EPD SERVER",
+    "status": "ONLINE",
+    "svg": "<svg xmlns=\"http://www.w3.org/2000/svg\" width=\"72\" height=\"72\" viewBox=\"0 0 24 24\"><path d=\"M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z\" fill=\"currentColor\"/></svg>"
+  }'
+```
+
+### Colorazione automatica
+
+Le icone SVG vengono colorate automaticamente in base al template:
+- **status**: Nero o rosso (in base allo stato)
+- **warning**: Bianco
+- **alert**: Nero
+- **success**: Nero
+- **info**: Nero
+
+Il sistema sostituisce automaticamente:
+- `currentColor`
+- `fill="black"` o `fill="#000"`
+- `stroke="black"` o `stroke="#000"`
+
+---
+
 ## Esempi di Utilizzo
 
 ### Con curl
 
 ```bash
+# Controlla stato corrente
+curl http://192.168.1.100:5000/status
+
 # Template WARNING
 curl -X POST http://192.168.1.100:5000/update \
   -H "Content-Type: application/json" \
@@ -348,6 +541,9 @@ curl -X POST http://192.168.1.100:5000/update \
     "field3_label": "RAM",
     "field3_value": "512MB"
   }'
+
+# Upload icona SVG
+curl -X POST -F "file=@icon.svg" http://192.168.1.100:5000/upload
 ```
 
 ### Con Python (requests)
@@ -423,20 +619,37 @@ Status code: `500`
 ## Struttura Directory
 
 ```
-eInk_Raspberry/
-├── server_epd.py          # Server Flask principale
+EPD-Server/
+├── server.py              # Server Flask principale
+├── epd_manager.py         # Manager per il display e-paper
+├── utils.py               # Utility functions (SVG, IP, bbox, load_icon)
+├── config.py              # Configurazione (font, colori, path)
 ├── lib/                   # Librerie Waveshare
 │   └── waveshare_epd/
 ├── pic/                   # Icone e font
 │   ├── Font.ttc           # Font (obbligatorio)
 │   ├── WARNING.bmp
 │   ├── INFO.bmp
-│   ├── CHECK.bmp
 │   ├── ALERT.bmp
-│   ├── STATUS.bmp
 │   ├── WIFI.bmp
-│   └── ...
-└── README.md
+│   └── ...                # Icone caricate via /upload
+├── templates/             # Template di rendering
+│   ├── __init__.py
+│   ├── status.py
+│   ├── warning.py
+│   ├── alert.py
+│   ├── success.py
+│   ├── info.py
+│   └── simple.py
+├── tests/                 # Test suite
+│   ├── conftest.py        # Configurazione pytest
+│   ├── test_server.py     # Test endpoint HTTP
+│   ├── test_utils.py      # Test utility functions
+│   └── test_templates.py  # Test template rendering
+├── requirements.txt       # Dipendenze produzione
+├── requirements-dev.txt   # Dipendenze sviluppo/test
+├── README.md              # Documentazione principale
+└── README_TESTS.md        # Documentazione test
 ```
 
 ## Avvio automatico (systemd)
@@ -512,8 +725,11 @@ caso di errori.
 - **Font**:
   - Grande: 40pt (`font_big`)
   - Piccolo: 24pt (`font_small`)
-- **Refresh**: Il display viene aggiornato immediatamente alla ricezione della richiesta POST
-- **Delay**: 3 secondi di attesa dopo ogni aggiornamento del display
+- **Refresh**: Gli aggiornamenti vengono accodati e processati asincronamente
+- **Rate Limiting**: Massimo 1 aggiornamento ogni 10 secondi (protezione hardware e-paper)
+- **Coda**: Massimo 10 richieste in coda; se piena, le richieste vengono rifiutate con HTTP 503
+- **Threading**: Worker thread dedicato per gli aggiornamenti del display
+- **Ottimizzazione**: Se ci sono multiple richieste in coda, viene processata solo l'ultima (più recente)
 
 ## Troubleshooting
 
@@ -528,6 +744,55 @@ Per il template `status`, se le label sono troppo lunghe, il testo potrebbe usci
 ### Colori sbagliati
 
 Verificare che i nomi dei colori siano scritti in minuscolo: `"white"`, `"black"`, `"red"`, `"yellow"`.
+
+---
+
+## Test
+
+Il progetto include una suite di test completa con pytest.
+
+### Installazione dipendenze di test
+
+```bash
+pip install -r requirements-dev.txt
+```
+
+### Esecuzione test
+
+```bash
+# Tutti i test
+pytest
+
+# Test con output verboso
+pytest -v
+
+# Test con coverage
+pytest --cov=. --cov-report=html
+
+# Test specifici
+pytest tests/test_server.py
+pytest tests/test_utils.py
+pytest tests/test_templates.py
+```
+
+### Struttura test
+
+- **tests/test_server.py**: Test degli endpoint HTTP (`/update`, `/status`, `/upload`)
+- **tests/test_utils.py**: Test delle utility (`bbox`, `get_ip`, `svg_to_image`, `load_icon`)
+- **tests/test_templates.py**: Test dei template di rendering (status, warning, alert, success, info)
+- **tests/conftest.py**: Fixture comuni e configurazione pytest
+
+### Coverage
+
+Il progetto ha una copertura di test >95%. Per vedere il report dettagliato:
+
+```bash
+pytest --cov=. --cov-report=term-missing
+```
+
+Per maggiori dettagli, consulta [README_TESTS.md](README_TESTS.md).
+
+---
 
 ## Licenza
 
