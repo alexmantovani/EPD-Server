@@ -36,6 +36,43 @@ sudo apt-get install libcairo2-dev
 pip install -r requirements.txt
 ```
 
+## Collegamento Hardware (GPIO)
+
+Il display e-Ink Waveshare 3.0" si collega al Raspberry Pi tramite interfaccia SPI e GPIO.
+
+### Schema dei collegamenti
+
+| Pin Display | Funzione | GPIO (BCM) | Pin Fisico |
+|-------------|----------|------------|------------|
+| VCC         | Alimentazione 3.3V | - | Pin 1 o 17 (3.3V) |
+| GND         | Ground | - | Pin 6, 9, 14, 20, 25, 30, 34, 39 |
+| DIN (MOSI)  | SPI Data In | GPIO 10 | Pin 19 |
+| CLK (SCLK)  | SPI Clock | GPIO 11 | Pin 23 |
+| CS          | Chip Select | GPIO 8 (CE0) | Pin 24 |
+| DC          | Data/Command | GPIO 25 | Pin 22 |
+| RST         | Reset | GPIO 17 | Pin 11 |
+| BUSY        | Busy Signal | GPIO 24 | Pin 18 |
+| PWR         | Power Control | GPIO 18 | Pin 12 |
+
+### Dettagli tecnici
+
+- **Interfaccia**: SPI (bus 0, device 0)
+- **Velocità SPI**: 4 MHz
+- **Modalità SPI**: Mode 0 (CPOL=0, CPHA=0)
+- **Alimentazione**: 3.3V (NON usare 5V!)
+- **Numerazione GPIO**: BCM (Broadcom)
+
+### Note importanti
+
+- Assicurarsi che l'interfaccia SPI sia abilitata sul Raspberry Pi:
+  ```bash
+  sudo raspi-config
+  # Interfacing Options -> SPI -> Enable
+  ```
+- Utilizzare **solo alimentazione 3.3V**, non 5V
+- I pin GPIO sono configurati automaticamente dal driver `epdconfig.py`
+- Il pin PWR (GPIO 18) controlla l'alimentazione del display
+
 ## Quick Start
 
 ```bash
