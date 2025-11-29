@@ -221,4 +221,4 @@ if __name__ == "__main__":
     status_img = template_status(status_data, epd.WIDTH, epd.HEIGHT)
     display_queue.put((status_img, "server_status", status_data))
 
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="127.0.0.1", port=5000)

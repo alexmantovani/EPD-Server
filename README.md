@@ -2,6 +2,74 @@
 
 Server Flask per controllare un display e-Ink Waveshare 3.0" (400x168px, 4 colori) tramite chiamate HTTP POST.
 
+## L'idea
+
+Questo progetto trasforma un display e-Ink collegato a un Raspberry Pi in un **pannello informativo controllabile via HTTP**. L'idea è semplice: processi locali, script e applicazioni in esecuzione sul Raspberry Pi possono inviare richieste HTTP a localhost per aggiornare il contenuto del display in tempo reale.
+
+### Casi d'uso
+
+- **Dashboard di sistema**: Mostrare stato, IP, temperatura, RAM, CPU di server o Raspberry Pi
+- **Notifiche visive**: Alert, warning, messaggi di errore da sistemi di monitoraggio
+- **Status board**: Stato di servizi, backup, deployment, processi automatici
+- **Home automation**: Integrare con Home Assistant, Node-RED, Domoticz
+- **Sviluppo IoT**: Display per progetti embedded, sensori, stazioni meteo
+- **Laboratorio/ufficio**: Pannello informativo per sale riunioni, laboratori, postazioni
+
+### Come funziona
+
+```
+                    ┌──────────────────────────────────────────┐
+                    │         Raspberry Pi (localhost)         │
+                    │                                          │
+┌─────────────┐     │   HTTP POST /update (127.0.0.1:5000)     │
+│   Script    │────────>{"template": "status",                │
+│   Python    │     │    "system_name": "SERVER",              │
+│             │     │    "status": "ONLINE"}                   │
+│             │     │                                          │
+│             │<────────{"status": "OK", "queued": true}       │
+└─────────────┘     │                                          │
+                    │  ┌────────────┐                          │
+                    │  │ Flask API  │                          │
+                    │  │ (127.0.0.1)│                          │
+                    │  └──────┬─────┘                          │
+                    │         │                                │
+                    │         ▼                                │
+                    │  ┌────────────┐                          │
+                    │  │   Queue    │                          │
+                    │  │  (async)   │                          │
+                    │  └──────┬─────┘                          │
+                    │         │                                │
+                    │         ▼                                │
+                    │  ┌────────────┐                          │
+                    │  │  Template  │                          │
+                    │  │  Renderer  │                          │
+                    │  └──────┬─────┘                          │
+                    │         │                                │
+                    │         ▼                                │
+                    │  ┌────────────┐                          │
+                    │  │  e-Ink     │                          │
+                    │  │  Display   │                          │
+                    │  └────────────┘                          │
+                    └──────────────────────────────────────────┘
+```
+
+**Flusso di funzionamento:**
+
+1. **Script locale invia richiesta HTTP POST** a localhost con i dati da visualizzare (template + parametri)
+2. **Server Flask** (in ascolto su 127.0.0.1) valida la richiesta e la accoda immediatamente
+3. **Risposta istantanea** allo script (non aspetta il refresh del display)
+4. **Worker thread** processa la coda in modo asincrono
+5. **Template renderer** genera l'immagine in base ai parametri ricevuti
+6. **Display e-Ink** viene aggiornato con la nuova immagine
+
+**Caratteristiche chiave:**
+
+- **Aggiornamenti asincroni**: Le richieste HTTP ritornano immediatamente senza attendere il refresh del display (che può richiedere diversi secondi)
+- **Coda intelligente**: Se arrivano multiple richieste, viene processata solo l'ultima (ottimizzazione)
+- **Rate limiting**: Protezione hardware con limite di 1 aggiornamento ogni 10 secondi (preserva la durata del display e-Ink)
+- **Template flessibili**: 6 template predefiniti per diversi tipi di visualizzazione
+- **API REST semplice**: Facile integrazione con qualsiasi linguaggio o piattaforma
+
 ## Caratteristiche
 
 - **Display**: Waveshare 3.0" e-Paper (400x168px)
@@ -98,10 +166,10 @@ curl -X POST http://localhost:5000/update \
 python3 server.py
 ```
 
-Il server si avvia su `http://0.0.0.0:5000` e:
+Il server si avvia su `http://127.0.0.1:5000` e:
 - Avvia un worker thread per gli aggiornamenti asincroni
 - Mostra lo stato iniziale sul display con IP, porta e status
-- Accetta richieste HTTP su tutti i 3 endpoint disponibili
+- Accetta richieste HTTP solo da localhost su tutti i 3 endpoint disponibili
 
 ## API Endpoint
 
@@ -183,13 +251,13 @@ Carica un'immagine nella cartella `pic/` per usarla come icona nei template.
 **Esempio con curl:**
 ```bash
 # Upload base
-curl -X POST -F "file=@icon.svg" http://192.168.1.100:5000/upload
+curl -X POST -F "file=@icon.svg" http://localhost:5000/upload
 
 # Upload con nome personalizzato
 curl -X POST \
   -F "file=@myicon.png" \
   -F "name=CUSTOM_ICON" \
-  http://192.168.1.100:5000/upload
+  http://localhost:5000/upload
 ```
 
 **Risposta successo:**
@@ -502,10 +570,10 @@ Tutti i template supportano icone in formato SVG, sia come file che come dati in
 
 ```bash
 # 1. Carica l'icona SVG sul server
-curl -X POST -F "file=@home.svg" http://192.168.1.100:5000/upload
+curl -X POST -F "file=@home.svg" http://localhost:5000/upload
 
 # 2. Usala in un template
-curl -X POST http://192.168.1.100:5000/update \
+curl -X POST http://localhost:5000/update \
   -H "Content-Type: application/json" \
   -d '{
     "template": "status",
@@ -520,7 +588,7 @@ curl -X POST http://192.168.1.100:5000/update \
 Puoi passare l'SVG direttamente nel parametro `svg`:
 
 ```bash
-curl -X POST http://192.168.1.100:5000/update \
+curl -X POST http://localhost:5000/update \
   -H "Content-Type: application/json" \
   -d '{
     "template": "status",
@@ -552,10 +620,10 @@ Il sistema sostituisce automaticamente:
 
 ```bash
 # Controlla stato corrente
-curl http://192.168.1.100:5000/status
+curl http://localhost:5000/status
 
 # Template WARNING
-curl -X POST http://192.168.1.100:5000/update \
+curl -X POST http://localhost:5000/update \
   -H "Content-Type: application/json" \
   -d '{
     "template": "warning",
@@ -565,7 +633,7 @@ curl -X POST http://192.168.1.100:5000/update \
   }'
 
 # Template STATUS
-curl -X POST http://192.168.1.100:5000/update \
+curl -X POST http://localhost:5000/update \
   -H "Content-Type: application/json" \
   -d '{
     "template": "status",
@@ -580,7 +648,7 @@ curl -X POST http://192.168.1.100:5000/update \
   }'
 
 # Upload icona SVG
-curl -X POST -F "file=@icon.svg" http://192.168.1.100:5000/upload
+curl -X POST -F "file=@icon.svg" http://localhost:5000/upload
 ```
 
 ### Con Python (requests)
@@ -588,7 +656,7 @@ curl -X POST -F "file=@icon.svg" http://192.168.1.100:5000/upload
 ```python
 import requests
 
-url = "http://192.168.1.100:5000/update"
+url = "http://localhost:5000/update"
 
 # Esempio INFO
 data = {
@@ -617,7 +685,7 @@ const data = {
   icon: 'ALERT.bmp'
 };
 
-axios.post('http://192.168.1.100:5000/update', data)
+axios.post('http://localhost:5000/update', data)
   .then(response => console.log(response.data))
   .catch(error => console.error(error));
 ```
