@@ -27,10 +27,10 @@ def template_warning(data, WIDTH, HEIGHT, epd_colors=None):
     # area inferiori
     draw.rectangle((0, top_h, WIDTH, HEIGHT), fill=RED)
 
-    # icona (supporta sia BMP che SVG)
+    # icona (supporta BMP, PNG, SVG inline e file SVG)
     svg_data = data.get("svg", None)
     if svg_data:
-        # Se c'è un SVG, usalo e coloralo di bianco (colore del testo)
+        # Se c'è un SVG inline, usalo e coloralo di bianco (colore del testo)
         icon_img = svg_to_image(svg_data, WHITE)
         bw, bh = icon_img.size
         y = top_h + (HEIGHT - top_h - bh) // 2
@@ -38,14 +38,26 @@ def template_warning(data, WIDTH, HEIGHT, epd_colors=None):
         draw.text((20 + bw + 20, y), line1, fill=WHITE, font=FONT_SMALL)
         draw.text((20 + bw + 20, y + 30), line2, fill=WHITE, font=FONT_SMALL)
     else:
-        # Altrimenti usa l'icona BMP tradizionale
+        # Altrimenti usa l'icona da file
         path = os.path.join(PICDIR, icon)
         if os.path.exists(path):
-            bmp = Image.open(path)
-            bw, bh = bmp.size
-            y = top_h + (HEIGHT - top_h - bh) // 2
-            img.paste(bmp, (20, y))
-            draw.text((20 + bw + 20, y), line1, fill=WHITE, font=FONT_SMALL)
-            draw.text((20 + bw + 20, y + 30), line2, fill=WHITE, font=FONT_SMALL)
+            # Se il file è un SVG, leggilo e convertilo
+            if icon.lower().endswith('.svg'):
+                with open(path, 'r', encoding='utf-8') as f:
+                    svg_content = f.read()
+                icon_img = svg_to_image(svg_content, WHITE)
+                bw, bh = icon_img.size
+                y = top_h + (HEIGHT - top_h - bh) // 2
+                img.paste(icon_img, (20, y), icon_img if icon_img.mode == 'RGBA' else None)
+                draw.text((20 + bw + 20, y), line1, fill=WHITE, font=FONT_SMALL)
+                draw.text((20 + bw + 20, y + 30), line2, fill=WHITE, font=FONT_SMALL)
+            else:
+                # Per BMP, PNG, ecc. usa il metodo tradizionale
+                bmp = Image.open(path)
+                bw, bh = bmp.size
+                y = top_h + (HEIGHT - top_h - bh) // 2
+                img.paste(bmp, (20, y))
+                draw.text((20 + bw + 20, y), line1, fill=WHITE, font=FONT_SMALL)
+                draw.text((20 + bw + 20, y + 30), line2, fill=WHITE, font=FONT_SMALL)
 
     return img
