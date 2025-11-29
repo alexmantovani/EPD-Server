@@ -105,7 +105,7 @@ class TestLoadIcon:
         svg_file = tmp_path / "test.svg"
         svg_file.write_text(sample_svg)
 
-        with patch('utils.PICDIR', str(tmp_path)):
+        with patch('config.PICDIR', str(tmp_path)):
             color = (0, 0, 0)
             img = load_icon("test.svg", color)
 
@@ -120,7 +120,7 @@ class TestLoadIcon:
         test_img = Image.new('RGB', (72, 72), color=(255, 255, 255))
         test_img.save(str(bmp_file))
 
-        with patch('utils.PICDIR', str(tmp_path)):
+        with patch('config.PICDIR', str(tmp_path)):
             color = (0, 0, 0)
             img = load_icon("test.bmp", color)
 
@@ -135,7 +135,7 @@ class TestLoadIcon:
         test_img = Image.new('RGB', (72, 72), color=(255, 255, 255))
         test_img.save(str(png_file))
 
-        with patch('utils.PICDIR', str(tmp_path)):
+        with patch('config.PICDIR', str(tmp_path)):
             color = (0, 0, 0)
             img = load_icon("test.png", color)
 
@@ -145,7 +145,7 @@ class TestLoadIcon:
 
     def test_load_icon_file_not_found(self, tmp_path):
         """Test quando il file non esiste"""
-        with patch('utils.PICDIR', str(tmp_path)):
+        with patch('config.PICDIR', str(tmp_path)):
             color = (0, 0, 0)
             img = load_icon("nonexistent.png", color)
 
