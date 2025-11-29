@@ -3,8 +3,9 @@ import sys
 import os
 from unittest.mock import Mock, MagicMock
 
-# Aggiungi il path del progetto
-sys.path.insert(0, os.path.dirname(__file__))
+# Aggiungi il path del progetto (directory parent di tests/)
+project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, project_root)
 
 @pytest.fixture
 def mock_epd():
