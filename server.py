@@ -205,10 +205,14 @@ if __name__ == "__main__":
     # Mostra la schermata di status iniziale (tramite coda)
     from utils import get_ip
     from templates.status import template_status
+    
+    # Ricavo la data attuale per la schermata di status
+    from datetime import datetime
+    now = datetime.now()
 
     status_data = {
-        "system_name": "EPD SERVER",
-        "status": "ONLINE",
+        "system_name": now.strftime("%d.%m.%Y"),
+        "status": now.strftime("%H:%M"),
         "field1_label": "IP",
         "field1_value": get_ip(),
         "field2_label": "Port",

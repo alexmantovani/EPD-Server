@@ -14,7 +14,7 @@ def template_status(data, WIDTH, HEIGHT, epd_colors=None):
 
     system = data.get("system_name", "SYSTEM")
     status = data.get("status", "ONLINE")
-    color = BLACK if status == "ONLINE" else RED
+    color = BLACK # if status == "ONLINE" else RED
 
     icon = data.get("icon", "STATUS.bmp")
 
