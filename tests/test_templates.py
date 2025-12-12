@@ -7,6 +7,7 @@ from templates.warning import template_warning
 from templates.alert import template_alert
 from templates.success import template_success
 from templates.info import template_info
+from templates.html import template_html
 
 
 class TestTemplateStatus:
@@ -278,3 +279,87 @@ class TestTemplateDefaults:
         img = template_info({}, 400, 168, epd_colors)
 
         assert isinstance(img, Image.Image)
+
+
+class TestTemplateHtml:
+    """Test per il template html"""
+
+    def test_html_creates_image(self, epd_colors):
+        """Test che il template crei un'immagine da HTML"""
+        data = {
+            "html": "<html><body><h1>Test</h1></body></html>"
+        }
+
+        img = template_html(data, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+        assert img.size == (400, 168)
+        assert img.mode == 'RGB'
+
+    def test_html_with_simple_content(self, epd_colors):
+        """Test HTML con contenuto semplice"""
+        data = {
+            "html": "<div style='background: white; padding: 20px;'><h1>Titolo</h1><p>Paragrafo di testo</p></div>"
+        }
+
+        img = template_html(data, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+        assert img.size == (400, 168)
+
+    def test_html_with_full_document(self, epd_colors):
+        """Test HTML con documento completo"""
+        data = {
+            "html": """<!DOCTYPE html>
+            <html>
+            <head>
+                <style>
+                    body { background: white; margin: 0; padding: 20px; }
+                    h1 { color: black; font-size: 24px; }
+                </style>
+            </head>
+            <body>
+                <h1>Titolo Completo</h1>
+                <p>Contenuto del documento</p>
+            </body>
+            </html>"""
+        }
+
+        img = template_html(data, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+        assert img.size == (400, 168)
+
+    def test_html_default_values(self, epd_colors):
+        """Test valori di default per html"""
+        img = template_html({}, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+        assert img.size == (400, 168)
+
+    def test_html_with_bg_color(self, epd_colors):
+        """Test HTML con colore di sfondo personalizzato"""
+        data = {
+            "html": "<p>Test</p>",
+            "bg_color": "yellow"
+        }
+
+        img = template_html(data, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+
+    @patch('templates.html.HTML')
+    def test_html_error_handling(self, mock_html_class, epd_colors):
+        """Test gestione errori nella renderizzazione HTML"""
+        # Mock che solleva un'eccezione
+        mock_html_class.side_effect = Exception("HTML parsing error")
+
+        data = {
+            "html": "<invalid>HTML</invalid>"
+        }
+
+        # Il template dovrebbe gestire l'errore e ritornare comunque un'immagine
+        img = template_html(data, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+        assert img.size == (400, 168)
