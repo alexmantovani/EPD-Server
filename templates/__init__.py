@@ -5,6 +5,7 @@ from .alert import template_alert
 from .status import template_status
 from .simple import template_simple
 from .html import template_html
+from .message import template_message
 
 TEMPLATES = {
     "warning": template_warning,
@@ -13,5 +14,6 @@ TEMPLATES = {
     "alert": template_alert,
     "status": template_status,
     "simple": template_simple,
-    "html": template_html
+    "html": template_html,
+    "message": template_message
 }

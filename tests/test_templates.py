@@ -8,6 +8,7 @@ from templates.alert import template_alert
 from templates.success import template_success
 from templates.info import template_info
 from templates.html import template_html
+from templates.message import template_message
 
 
 class TestTemplateStatus:
@@ -363,3 +364,129 @@ class TestTemplateHtml:
 
         assert isinstance(img, Image.Image)
         assert img.size == (400, 168)
+
+
+class TestTemplateMessage:
+    """Test per il template message"""
+
+    def test_message_creates_image(self, epd_colors):
+        """Test che il template crei un'immagine"""
+        data = {
+            "background": "red",
+            "color": "white",
+            "title": "Errore",
+            "message": "Scheda non valida"
+        }
+
+        img = template_message(data, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+        assert img.size == (400, 168)
+        assert img.mode == 'RGB'
+
+    @patch('templates.message.load_icon')
+    def test_message_with_icon(self, mock_load_icon, epd_colors):
+        """Test message con icona"""
+        mock_icon = Image.new('RGBA', (72, 72), color=(255, 255, 255, 255))
+        mock_load_icon.return_value = mock_icon
+
+        data = {
+            "background": "red",
+            "color": "white",
+            "title": "Errore",
+            "message": "Scheda non valida",
+            "icon": "alert.bmp"
+        }
+
+        img = template_message(data, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+        assert img.size == (400, 168)
+        mock_load_icon.assert_called_once()
+
+    def test_message_without_icon(self, epd_colors):
+        """Test message senza icona (testo centrato)"""
+        data = {
+            "background": "white",
+            "color": "black",
+            "title": "Info",
+            "message": "Messaggio di informazione"
+        }
+
+        img = template_message(data, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+        assert img.size == (400, 168)
+
+    def test_message_auto_color(self, epd_colors):
+        """Test colore automatico basato su background"""
+        # Background nero -> testo bianco automatico
+        data = {
+            "background": "black",
+            "title": "Test",
+            "message": "Testo"
+        }
+
+        img = template_message(data, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+
+        # Background bianco -> testo nero automatico
+        data = {
+            "background": "white",
+            "title": "Test",
+            "message": "Testo"
+        }
+
+        img = template_message(data, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+
+    def test_message_default_values(self, epd_colors):
+        """Test valori di default per message"""
+        img = template_message({}, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+        assert img.size == (400, 168)
+
+    def test_message_only_title(self, epd_colors):
+        """Test message con solo titolo"""
+        data = {
+            "background": "yellow",
+            "title": "Solo Titolo"
+        }
+
+        img = template_message(data, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+
+    def test_message_only_message(self, epd_colors):
+        """Test message con solo messaggio"""
+        data = {
+            "background": "red",
+            "message": "Solo messaggio"
+        }
+
+        img = template_message(data, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+
+    @patch('templates.message.load_icon')
+    def test_message_with_svg(self, mock_load_icon, epd_colors, sample_svg):
+        """Test message con SVG inline"""
+        mock_icon = Image.new('RGB', (72, 72), color=(255, 255, 255))
+        mock_load_icon.return_value = mock_icon
+
+        data = {
+            "background": "white",
+            "title": "SVG Test",
+            "message": "Con icona SVG",
+            "svg": sample_svg
+        }
+
+        img = template_message(data, 400, 168, epd_colors)
+
+        assert isinstance(img, Image.Image)
+        # Verifica che load_icon sia stato chiamato con i dati SVG
+        call_args = mock_load_icon.call_args
+        assert call_args[0][2] == sample_svg
