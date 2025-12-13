@@ -1,6 +1,9 @@
 from PIL import Image, ImageDraw
 from config import FONT_BIG, FONT_SMALL
 from utils import bbox, load_icon
+from logger import get_logger
+
+logger = get_logger('templates.message')
 
 
 def template_message(data, WIDTH, HEIGHT, epd_colors):
@@ -23,6 +26,8 @@ def template_message(data, WIDTH, HEIGHT, epd_colors):
     Returns:
         PIL.Image.Image: 400x168 RGB image
     """
+    logger.debug(f"template_message chiamato con dimensioni {WIDTH}x{HEIGHT}")
+
     # Estrai parametri
     bg_name = data.get("background", "white")
     color_name = data.get("color", None)
@@ -30,27 +35,39 @@ def template_message(data, WIDTH, HEIGHT, epd_colors):
     message = data.get("message", "")
     icon_filename = data.get("icon", None)
 
+    logger.debug(f"Parametri: bg={bg_name}, color={color_name}, title='{title}', message='{message}', icon={icon_filename}")
+
     # Ottieni colore background
     bg = epd_colors.get(bg_name.upper(), epd_colors["WHITE"])
 
     # Colore testo automatico se non specificato
     if color_name:
         text_color = epd_colors.get(color_name.upper(), epd_colors["BLACK"])
+        logger.debug(f"Colore testo specificato: {color_name}")
     else:
         # Contrasto automatico: bianco su nero, nero su tutto il resto
         text_color = epd_colors["WHITE"] if bg == epd_colors["BLACK"] else epd_colors["BLACK"]
+        logger.debug(f"Colore testo automatico: {'white' if text_color == epd_colors['WHITE'] else 'black'}")
 
     # Crea immagine
     img = Image.new("RGB", (WIDTH, HEIGHT), bg)
     draw = ImageDraw.Draw(img)
+    logger.debug("Canvas immagine creato")
 
     # Carica icona se presente
     icon_img = None
     icon_width = 0
     if icon_filename:
-        icon_img = load_icon(icon_filename, text_color, data.get("svg"))
-        if icon_img:
-            icon_width = icon_img.size[0]
+        logger.debug(f"Caricamento icona: {icon_filename}")
+        try:
+            icon_img = load_icon(icon_filename, text_color, data.get("svg"))
+            if icon_img:
+                icon_width = icon_img.size[0]
+                logger.debug(f"Icona caricata: {icon_img.size}")
+            else:
+                logger.warning(f"Icona non caricata: {icon_filename}")
+        except Exception as e:
+            logger.error(f"Errore nel caricamento icona '{icon_filename}': {e}", exc_info=True)
 
     # Calcola posizione X per il testo
     # Se c'è un'icona, il testo va a destra dell'icona
@@ -87,8 +104,11 @@ def template_message(data, WIDTH, HEIGHT, epd_colors):
         if icon_img:
             # Allineato a sinistra accanto all'icona
             draw.text((text_x, message_y), message, fill=text_color, font=FONT_SMALL)
+            logger.debug(f"Messaggio renderizzato (allineato a destra icona): '{message[:30]}...'")
         else:
             # Centrato
             draw.text(((WIDTH - m_w) // 2, message_y), message, fill=text_color, font=FONT_SMALL)
+            logger.debug(f"Messaggio renderizzato (centrato): '{message[:30]}...'")
 
+    logger.info(f"Template message generato con successo ({WIDTH}x{HEIGHT}, bg={bg_name}, icon={'sì' if icon_img else 'no'})")
     return img

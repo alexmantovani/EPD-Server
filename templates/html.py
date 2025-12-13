@@ -1,6 +1,9 @@
 from PIL import Image
 from io import BytesIO
 from weasyprint import HTML
+from logger import get_logger
+
+logger = get_logger('templates.html')
 
 
 def template_html(data, WIDTH, HEIGHT, epd_colors):
@@ -19,12 +22,16 @@ def template_html(data, WIDTH, HEIGHT, epd_colors):
     Returns:
         PIL.Image.Image: 400x168 RGB image
     """
+    logger.debug(f"template_html chiamato con dimensioni {WIDTH}x{HEIGHT}")
+
     # Extract HTML content
     html_content = data.get("html", "<html><body><p>No HTML content provided</p></body></html>")
+    logger.debug(f"Lunghezza contenuto HTML: {len(html_content)} caratteri")
 
     # Get background color (if needed for fallback)
     bg_color_name = data.get("bg_color", "white")
     bg_color = epd_colors.get(bg_color_name.upper(), epd_colors["WHITE"])
+    logger.debug(f"Colore background: {bg_color_name}")
 
     # Create HTML document with inline CSS to set viewport size
     # This ensures proper scaling for the EPD display
@@ -58,27 +65,37 @@ def template_html(data, WIDTH, HEIGHT, epd_colors):
         html_with_viewport = html_content
 
     try:
+        logger.debug("Creazione documento HTML da stringa...")
         # Create HTML document from string
         html_doc = HTML(string=html_with_viewport)
 
         # Render to PNG in memory
+        logger.debug("Rendering HTML to PNG...")
         png_bytes = BytesIO()
         html_doc.write_png(png_bytes)
         png_bytes.seek(0)
+        logger.debug(f"PNG generato ({png_bytes.getbuffer().nbytes} bytes)")
 
         # Open with PIL
         img = Image.open(png_bytes)
+        logger.debug(f"Immagine PIL creata: {img.size}, mode: {img.mode}")
 
         # Resize to exact display dimensions
+        logger.debug(f"Resize immagine a {WIDTH}x{HEIGHT}...")
         img = img.resize((WIDTH, HEIGHT), Image.Resampling.LANCZOS)
 
         # Ensure RGB mode for EPD display
         if img.mode != 'RGB':
+            logger.debug(f"Conversione da {img.mode} a RGB")
             img = img.convert('RGB')
 
+        logger.info(f"Template HTML renderizzato con successo ({WIDTH}x{HEIGHT})")
         return img
 
     except Exception as e:
+        logger.error(f"Errore nel rendering HTML: {e}", exc_info=True)
+        logger.warning("Creazione immagine di errore fallback...")
+
         # Fallback: create error image if HTML rendering fails
         img = Image.new("RGB", (WIDTH, HEIGHT), bg_color)
         from PIL import ImageDraw
@@ -90,4 +107,5 @@ def template_html(data, WIDTH, HEIGHT, epd_colors):
 
         draw.text((10, HEIGHT//2 - 12), error_msg, fill=text_color, font=FONT_SMALL)
 
+        logger.info("Immagine di errore fallback creata")
         return img
