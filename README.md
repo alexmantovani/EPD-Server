@@ -2,6 +2,8 @@
 
 Server Flask per controllare un display e-Ink Waveshare 3.0" (400x168px, 4 colori) tramite chiamate HTTP POST.
 
+![IMG_1546](https://github.com/user-attachments/assets/57e0ac00-59fa-444f-a261-672770e3cb35)
+
 ## L'idea
 
 Questo progetto trasforma un display e-Ink collegato a un Raspberry Pi in un **pannello informativo controllabile via HTTP**. L'idea è semplice: processi locali, script e applicazioni in esecuzione sul Raspberry Pi possono inviare richieste HTTP a localhost per aggiornare il contenuto del display in tempo reale.
